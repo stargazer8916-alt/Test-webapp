@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Standoff 2 Simulator</title>
+    <!-- Telegram Web App SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, 'Roboto', sans-serif;
+        }
+
+        :root {
+            --bg-dark: #0a0c10;
+            --bg-card: #14181f;
+            --primary: #ff4655;
+            --primary-glow: rgba(255, 70, 85, 0.5);
+            --secondary: #2a3b4c;
+            --text-light: #f0f4fa;
+            --text-dim: #9aa8b9;
+            --gold: #ffb347;
+            --star: #3b9eff;
+            --common: #b0c3d9;
+            --rare: #4b69ff;
+            --epic: #8847ff;
+            --legendary: #ff9b4b;
+            --success: #43b581;
+            --error: #f04747;
+            --border-radius: 16px;
+            --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            min-height: 100vh;
+            padding: 16px;
+            padding-bottom: 100px;
+            /* для безопасной зоны на iPhone */
+            padding-bottom: calc(100px + env(safe-area-inset-bottom, 0));
+        }
+
+        /* скрываем скроллбар для чистоты */
+        body::-webkit-scrollbar {
+            display: none;
+        }
+
+        .app-container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        /* Шапка с балансами */
+        .balance-panel {
+            background: var(--bg-card);
+            border-radius: var(--border-radius);
+            padding: 20px 16px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.6), inset 0 1px 1px rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 70, 85, 0.2);
+            backdrop-filter: blur(4px);
+        }
+
+        .balance-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .balance-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .balance-item img, .balance-item span {
+            filter: drop-shadow(0 0 6px currentColor);
+        }
+
+        .gold {
+            color: var(--gold);
+        }
+
+        .stars {
+            color: var(--star);
+        }
+
+        .buy-stars-btn {
+            background: linear-gradient(145deg, #1e2a36, #0f1a24);
+            border: 1px solid var(--star);
+            color: var(--star);
+            border-radius: 40px;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 2px 8px rgba(59, 158, 255, 0.3);
+        }
+
+        .buy-stars-btn:hover {
+            transform: scale(1.03);
+            background: #1f3545;
+            box-shadow: 0 4px 12px var(--star);
+        }
+
+        /* сетка кейсов */
+        .cases-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .case-card {
+            background: var(--bg-card);
+            border-radius: 20px;
+            padding: 18px 12px;
+            text-align: center;
+            border: 1px solid rgba(255, 70, 85, 0.3);
+            box-shadow: 0 8px 0 #0b0e12;
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .case-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary), #ff8a5c);
+        }
+
+        .case-card:active {
+            transform: translateY(4px);
+            box-shadow: 0 4px 0 #0b0e12;
+        }
+
+        .case-icon {
+            font-size: 3.5rem;
+            margin-bottom: 8px;
+            filter: drop-shadow(0 0 12px var(--primary-glow));
+            animation: case-float 3s infinite ease-in-out;
+        }
+
+        @keyframes case-float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+        }
+
+        .case-title {
+            font-weight: 700;
+            font-size: 1.2rem;
+            letter-spacing: 0.5px;
+            margin-bottom: 4px;
+        }
+
+        .case-price {
+            color: var(--gold);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        /* кнопки действий */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .action-btn {
+            flex: 1;
+            background: var(--bg-card);
+            border: none;
+            color: var(--text-light);
+            padding: 14px 0;
+            border-radius: 40px;
+            font-weight: 600;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            border: 1px solid var(--secondary);
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .action-btn.active {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        /* секции контента */
+        .section {
+            display: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .section.active {
+            display: block;
+            opacity: 1;
+        }
+
+        .section-title {
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 16px;
+            padding-left: 8px;
+            border-left: 5px solid var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* магазин / инвентарь - сетка */
+        .items-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .item-card {
+            background: var(--bg-card);
+            border-radius: 18px;
+            padding: 16px 8px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.06);
+            transition: var(--transition);
+            position: relative;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+            cursor: pointer;
+        }
+
+        .item-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+        }
+
+        .item-rarity {
+            height: 4px;
+            width: 80%;
+            margin: 0 auto 8px;
+            border-radius: 4px;
+        }
+
+        .rarity-common { background: var(--common); box-shadow: 0 0 8px var(--common); }
+        .rarity-rare { background: var(--rare); box-shadow: 0 0 8px var(--rare); }
+        .rarity-epic { background: var(--epic); box-shadow: 0 0 8px var(--epic); }
+        .rarity-legendary { background: var(--legendary); box-shadow: 0 0 8px var(--legendary); }
+
+        .item-icon {
+            font-size: 2.8rem;
+            margin: 8px 0;
+            filter: drop-shadow(0 4px 6px black);
+        }
+
+        .item-name {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .item-price {
+            color: var(--gold);
+            font-weight: 600;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+
+        .item-sell-btn {
+            margin-top: 10px;
+            background: rgba(255,70,85,0.2);
+            border: 1px solid var(--primary);
+            border-radius: 30px;
+            padding: 6px 0;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--primary);
+            transition: var(--transition);
+        }
+
+        .item-sell-btn:hover {
+            background: var(--primary);
+            color: black;
+        }
+
+        /* уведомления */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%) scale(0.9);
+            background: var(--bg-card);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 50px;
+            font-weight: 500;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8), 0 0 20px var(--primary-glow);
+            border: 1px solid var(--primary);
+            opacity: 0;
+            transition: 0.2s;
+            z-index: 1000;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) scale(1);
+        }
+
+        /* анимация открытия кейса */
+        @keyframes spin-reveal {
+            0% { transform: rotate(0deg) scale(1); opacity: 1; }
+            50% { transform: rotate(180deg) scale(1.3); opacity: 0.8; }
+            100% { transform: rotate(360deg) scale(1); opacity: 1; }
+        }
+
+        .case-opening-animation {
+            animation: spin-reveal 0.5s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Баланс и покупка звёзд -->
+        <div class="balance-panel">
+            <div class="balance-row">
+                <div class="balance-item gold">
+                    <span>💰</span> <span id="gold-amount">1000</span>
+                </div>
+                <div class="balance-item stars">
+                    <span>⭐</span> <span id="stars-amount">5</span>
+                </div>
+                <button class="buy-stars-btn" id="buy-stars-btn">
+                    <span>⭐</span> Купить голду
+                </button>
+            </div>
+        </div>
+
+        <!-- Кейсы -->
+        <div class="cases-grid">
+            <div class="case-card" data-case="basic">
+                <div class="case-icon">📦</div>
+                <div class="case-title">Базовый кейс</div>
+                <div class="case-price">💰 50</div>
+            </div>
+            <div class="case-card" data-case="rare">
+                <div class="case-icon">🔮</div>
+                <div class="case-title">Редкий кейс</div>
+                <div class="case-price">💰 150</div>
+            </div>
+        </div>
+
+        <!-- Переключатели магазин / инвентарь -->
+        <div class="action-buttons">
+            <button class="action-btn active" id="btn-shop">🏪 Магазин</button>
+            <button class="action-btn" id="btn-inventory">🎒 Инвентарь</button>
+        </div>
+
+        <!-- Секция магазина -->
+        <div id="shop-section" class="section active">
+            <div class="section-title">⚡ Доступные скины</div>
+            <div class="items-grid" id="shop-grid"></div>
+        </div>
+
+        <!-- Секция инвентаря -->
+        <div id="inventory-section" class="section">
+            <div class="section-title">🎯 Мой инвентарь</div>
+            <div class="items-grid" id="inventory-grid"></div>
+        </div>
+    </div>
+
+    <!-- Тоаст уведомление -->
+    <div id="toast" class="toast"></div>
+
+    <script>
+        (function() {
+            // Инициализация Telegram WebApp
+            const tg = window.Telegram?.WebApp;
+            if (tg) {
+                tg.ready();
+                tg.expand(); // разворачиваем на весь экран
+                tg.setHeaderColor?.(bg_dark); // если поддерживается
+            }
+
+            // --- Данные приложения ---
+            let gold = 1000;           // стартовая голда
+            let stars = 5;              // звёзды Telegram (имитация)
+
+            // Пул скинов (название, редкость, цена продажи/покупки, эмодзи)
+            const skinsDB = [
+                { id: 'm4a1', name: 'M4A1 Азимов', rarity: 'rare', price: 120, icon: '🔫' },
+                { id: 'ak47', name: 'AK-47 Кровавая', rarity: 'legendary', price: 450, icon: '🔥' },
+                { id: 'deagle', name: 'Desert Eagle', rarity: 'common', price: 40, icon: '💥' },
+                { id: 'awp', name: 'AWP Дракон', rarity: 'epic', price: 280, icon: '🐉' },
+                { id: 'knife', name: 'Керамбит', rarity: 'legendary', price: 600, icon: '🔪' },
+                { id: 'usp', name: 'USP-S Облик', rarity: 'rare', price: 110, icon: '🌀' },
+                { id: 'famas', name: 'FAMAS Меч', rarity: 'epic', price: 220, icon: '⚔️' },
+                { id: 'glock', name: 'Glock-18 Вода', rarity: 'common', price: 35, icon: '💧' },
+            ];
+
+            // Инвентарь пользователя (массив id скинов)
+            let inventory = [
+                { id: 'm4a1', acquired: Date.now() },
+                { id: 'glock', acquired: Date.now() }
+            ];
+
+            // Доступные в магазине скины (все, кроме тех, что уже куплены? но магазин показывает всё всегда)
+            // для простоты покажем все скины, купить можно только если нет в инвентаре? или можно дубликаты? допустим, можно собирать много.
+            // разрешим дубликаты, чтобы было веселее.
+
+            // --- DOM элементы ---
+            const goldSpan = document.getElementById('gold-amount');
+            const starsSpan = document.getElementById('stars-amount');
+            const shopGrid = document.getElementById('shop-grid');
+            const invGrid = document.getElementById('inventory-grid');
+            const btnShop = document.getElementById('btn-shop');
+            const btnInv = document.getElementById('btn-inventory');
+            const shopSection = document.getElementById('shop-section');
+            const invSection = document.getElementById('inventory-section');
+            const toast = document.getElementById('toast');
+            const buyStarsBtn = document.getElementById('buy-stars-btn');
+
+            // Обновление отображения баланса
+            function updateBalance() {
+                goldSpan.innerText = gold;
+                starsSpan.innerText = stars;
+            }
+
+            // Показать уведомление
+            function showToast(text, isError = false) {
+                toast.innerText = text;
+                toast.style.background = isError ? 'var(--error)' : 'var(--bg-card)';
+                toast.style.borderColor = isError ? 'var(--error)' : 'var(--primary)';
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 2000);
+            }
+
+            // Получить полный объект скина по id
+            function getSkinById(id) {
+                return skinsDB.find(s => s.id === id);
+            }
+
+            // Получить инвентарь с полными данными (для отображения)
+            function getFullInventory() {
+                return inventory.map(item => {
+                    const skin = getSkinById(item.id);
+                    return { ...skin, acquired: item.acquired };
+                }).sort((a, b) => b.acquired - a.acquired); // новые сверху
+            }
+
+            // Отрисовка магазина
+            function renderShop() {
+                let html = '';
+                skinsDB.forEach(skin => {
+                    html += `
+                        <div class="item-card" data-skin-id="${skin.id}" data-action="buy">
+                            <div class="item-rarity rarity-${skin.rarity}"></div>
+                            <div class="item-icon">${skin.icon}</div>
+                            <div class="item-name">${skin.name}</div>
+                            <div class="item-price">💰 ${skin.price}</div>
+                            <div class="item-sell-btn">Купить</div>
+                        </div>
+                    `;
+                });
+                shopGrid.innerHTML = html;
+            }
+
+            // Отрисовка инвентаря
+            function renderInventory() {
+                const fullInv = getFullInventory();
+                if (fullInv.length === 0) {
+                    invGrid.innerHTML = '<div style="grid-column:1/-1; text-align:center; padding:40px; color:var(--text-dim);">Пусто 😢 Открой кейс!</div>';
+                    return;
+                }
+                let html = '';
+                fullInv.forEach(skin => {
+                    html += `
+                        <div class="item-card" data-skin-id="${skin.id}" data-inv-index="${skin.id}" data-action="sell">
+                            <div class="item-rarity rarity-${skin.rarity}"></div>
+                            <div class="item-icon">${skin.icon}</div>
+                            <div class="item-name">${skin.name}</div>
+                            <div class="item-price">💰 ${skin.price}</div>
+                            <div class="item-sell-btn">Продать</div>
+                        </div>
+                    `;
+                });
+                invGrid.innerHTML = html;
+            }
+
+            // Покупка скина
+            function buySkin(skinId) {
+                const skin = getSkinById(skinId);
+                if (!skin) return;
+                if (gold < skin.price) {
+                    showToast('❌ Недостаточно голды', true);
+                    return;
+                }
+                gold -= skin.price;
+                inventory.push({ id: skinId, acquired: Date.now() });
+                updateBalance();
+                renderInventory(); // обновить инвентарь
+                showToast(`✅ Куплен ${skin.name}`);
+            }
+
+            // Продажа скина (удаляем один экземпляр из инвентаря, самый старый или первый)
+            function sellSkin(skinId) {
+                const skin = getSkinById(skinId);
+                if (!skin) return;
+                const index = inventory.findIndex(item => item.id === skinId);
+                if (index === -1) {
+                    showToast('⚠️ Скин не найден', true);
+                    return;
+                }
+                inventory.splice(index, 1);
+                gold += Math.floor(skin.price * 0.7); // продажа за 70% цены
+                updateBalance();
+                renderInventory();
+                showToast(`💰 Продан ${skin.name} за ${Math.floor(skin.price * 0.7)} голды`);
+            }
+
+            // Открытие кейса
+            function openCase(caseType) {
+                let cost = caseType === 'basic' ? 50 : 150;
+                if (gold < cost) {
+                    showToast('❌ Не хватает голды', true);
+                    return;
+                }
+
+                // Анимация на карточке кейса
+                const caseCard = document.querySelector(`.case-card[data-case="${caseType}"]`);
+                if (caseCard) {
+                    caseCard.classList.add('case-opening-animation');
+                    setTimeout(() => caseCard.classList.remove('case-opening-animation'), 600);
+                }
+
+                gold -= cost;
+
+                // Определяем пул скинов для кейса (в базовом только common/rare, в редком - rare/epic/legendary)
+                let pool = [];
+                if (caseType === 'basic') {
+                    pool = skinsDB.filter(s => s.rarity === 'common' || s.rarity === 'rare');
+                } else {
+                    pool = skinsDB.filter(s => s.rarity === 'rare' || s.rarity === 'epic' || s.rarity === 'legendary');
+                }
+                // если пуст, добавим что-то
+                if (pool.length === 0) pool = skinsDB;
+
+                // случайный скин
+                const randomSkin = pool[Math.floor(Math.random() * pool.length)];
+                inventory.push({ id: randomSkin.id, acquired: Date.now() });
+
+                updateBalance();
+                renderInventory();
+                showToast(`🎉 Вы получили: ${randomSkin.name}!`);
+            }
+
+            // Покупка голды за звёзды (имитация через диалог)
+            function buyGoldWithStars() {
+                if (stars < 1) {
+                    showToast('⭐ Недостаточно звёзд', true);
+                    return;
+                }
+
+                // В реальном приложении здесь вызов tg.openInvoice или tg.openStarTransaction
+                // для демонстрации используем всплывающее окно
+                if (tg) {
+                    tg.showPopup({
+                        title: 'Покупка голды',
+                        message: 'Купить 50 голды за 1 звезду?',
+                        buttons: [
+                            { id: 'buy', type: 'default', text: 'Купить' },
+                            { id: 'cancel', type: 'cancel', text: 'Отмена' }
+                        ]
+                    }, (buttonId) => {
+                        if (buttonId === 'buy') {
+                            stars -= 1;
+                            gold += 50;
+                            updateBalance();
+                            showToast('✨ +50 голды!');
+                        }
+                    });
+                } else {
+                    // fallback если не в телеграме
+                    if (confirm('Купить 50 голды за 1 звезду?')) {
+                        stars -= 1;
+                        gold += 50;
+                        updateBalance();
+                        showToast('✨ +50 голды');
+                    }
+                }
+            }
+
+            // --- Обработчики событий ---
+            function handleDocumentClick(e) {
+                const target = e.target.closest('[data-action]');
+                if (!target) return;
+
+                const action = target.dataset.action;
+                const skinId = target.closest('[data-skin-id]')?.dataset.skinId;
+
+                if (action === 'buy' && skinId) {
+                    buySkin(skinId);
+                } else if (action === 'sell' && skinId) {
+                    sellSkin(skinId);
+                }
+            }
+
+            function handleCaseClick(e) {
+                const caseCard = e.target.closest('.case-card');
+                if (!caseCard) return;
+                const caseType = caseCard.dataset.case;
+                openCase(caseType);
+            }
+
+            // Переключение вкладок
+            btnShop.addEventListener('click', () => {
+                btnShop.classList.add('active');
+                btnInv.classList.remove('active');
+                shopSection.classList.add('active');
+                invSection.classList.remove('active');
+            });
+
+            btnInv.addEventListener('click', () => {
+                btnInv.classList.add('active');
+                btnShop.classList.remove('active');
+                invSection.classList.add('active');
+                shopSection.classList.remove('active');
+                renderInventory(); // перерендер инвентаря при открытии
+            });
+
+            buyStarsBtn.addEventListener('click', buyGoldWithStars);
+
+            // Глобальный обработчик кликов для карточек
+            document.addEventListener('click', handleDocumentClick);
+            document.querySelectorAll('.case-card').forEach(card => {
+                card.addEventListener('click', handleCaseClick);
+            });
+
+            // Инициализация интерфейса
+            renderShop();
+            renderInventory();
+            updateBalance();
+
+            // Для демонстрации без телеграма - симулируем звёзды
+            if (!tg) {
+                stars = 5;
+                updateBalance();
+            }
+
+            // Эффект неонового свечения при загрузке
+            console.log('Standoff 2 Simulator запущен!');
+        })();
+    </script>
+</body>
+  </html>
