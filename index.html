@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SO2 Ultra Simulator</title>
+    <style>
+        /* ОСНОВНЫЕ СТИЛИ: Цвета и макет */
+        :root {
+            --bg-deep: #07090d;
+            --bg-panel: #131720;
+            --accent: #ff9f43;
+            --rarity-arcane: #fdcb6e;
+            --rarity-legendary: #ff7675;
+            --rarity-epic: #a29bfe;
+            --rarity-rare: #74b9ff;
+            --text-main: #ecf0f1;
+            --text-dark: #636e72;
+            --font: 'Segoe UI', Roboto, sans-serif;
+            --glow-arcane: 0 0 15px rgba(253, 203, 110, 0.4);
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-deep);
+            color: var(--text-main);
+            font-family: var(--font);
+            overflow-x: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        /* КОНТЕЙНЕР ПРИЛОЖЕНИЯ */
+        .app-container {
+            width: 380px;
+            height: 700px;
+            background-color: #0d1117;
+            border-radius: 20px;
+            overflow: hidden;
+            border: 2px solid #333;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.7);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ПАНЕЛЬ ВАЛЮТЫ */
+        .header-bar {
+            padding: 15px;
+            background-color: var(--bg-panel);
+            display: flex;
+            justify-content: space-around;
+            border-bottom: 2px solid #2d3436;
+        }
+
+        .currency {
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        /* ОСНОВНОЙ КОНТЕНТ */
+        .content {
+            padding: 20px;
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .section-title {
+            color: var(--text-dark);
+            text-transform: uppercase;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        /* КАРТОЧКИ КЕЙСОВ И БОКСОВ */
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .case-card {
+            background-color: var(--bg-panel);
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border: 2px solid transparent;
+            position: relative;
+        }
+
+        .case-card:hover {
+            border-color: #ff9f4350;
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(255,159,67,0.1);
+        }
+
+        .case-name { font-weight: bold; margin-bottom: 5px; }
+        .case-price { color: var(--accent); font-size: 14px; }
+
+        /* ЭФФЕКТ СВЕЧЕНИЯ ДЛЯ RARE BOX */
+        .rare-box {
+            border: 2px solid #74b9ff50;
+            box-shadow: 0 0 10px rgba(116, 185, 255, 0.2);
+        }
+
+        /* ПАНЕЛЬ ОТКРЫТИЯ КЕЙСА */
+        .case-modal-overlay {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background-color: rgba(0,0,0,0.85);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .case-modal {
+            width: 340px;
+            background-color: var(--bg-panel);
+            border-radius: 15px;
+            padding: 20px;
+            border: 2px solid #ff9f4380;
+            text-align: center;
+        }
+
+        /* РУЛЕТКА */
+        .roulette-container {
+            width: 100%;
+            height: 90px;
+            background-color: #0a0c10;
+            border: 2px solid #444;
+            border-radius: 8px;
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Центральная линия */
+        .roulette-container::before {
+            content: '';
+            position: absolute;
+            left: 50%; top: 0;
+            width: 2px; height: 100%;
+            background-color: var(--accent);
+            z-index: 10;
+            box-shadow: 0 0 10px var(--accent);
+            transform: translateX(-50%);
+        }
+
+        .track {
+            display: flex;
+            align-items: center;
+            transform: translateX(0); /* Будет анимироваться */
+        }
+
+        .weapon-item {
+            width: 80px;
+            height: 80px;
+            flex-shrink: 0;
+            margin: 5px;
+            border-radius: 5px;
+            background-color: #222;
+            border-bottom: 4px solid #444; /* Редкость */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 10px;
+            text-align: center;
+            padding: 5px;
+            box-sizing: border-box;
+        }
+
+        /* КНОПКИ */
+        .btn-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-transform: uppercase;
+        }
+
+        .btn-open {
+            background: linear-gradient(45deg, #ff9f43, #fd9644);
+            color: #000;
+        }
+
+        .btn-open:hover {
+            box-shadow: 0 0 10px #ff9f4380;
+        }
+
+        .btn-close {
+            background-color: transparent;
+            color: var(--text-dark);
+            border: 2px solid var(--text-dark);
+        }
+
+        .btn-close:hover {
+            border-color: #ecf0f1;
+            color: #ecf0f1;
+        }
+
+        /* НАВИГАЦИЯ */
+        .nav-bar {
+            height: 60px;
+            background-color: var(--bg-panel);
+            border-top: 1px solid #333;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            padding: 0 10px;
+        }
+
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-dark);
+            font-size: 12px;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        .nav-item.active {
+            color: var(--accent);
+        }
+
+        /* АНИМАЦИИ */
+        @keyframes openModal {
+            from { opacity: 0; transform: scale(0.9); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        /* Класс для запуска рулетки */
+        .spin {
+            animation: rouletteSpin 6s cubic-bezier(0.1, 0.9, 0.2, 1) forwards;
+        }
+
+        @keyframes rouletteSpin {
+            to { transform: translateX(-3500px); } /* Дистанция прокрутки */
+        }
+
+        @keyframes winPulse {
+            0% { box-shadow: 0 0 10px #ff9f43; }
+            50% { box-shadow: 0 0 30px #ff9f43; }
+            100% { box-shadow: 0 0 10px #ff9f43; }
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="app-container">
+        <div class="header-bar">
+            <div class="currency" style="color:var(--gold)">💰 120 G</div>
+            <div class="currency" style="color:var(--silver)">🪙 0 S</div>
+        </div>
+
+        <div class="content">
+            <div class="section-title">Cases</div>
+            <div class="grid">
+                <div class="case-card" onclick="openCaseInfo('Empire')">
+                    <div class="case-name">Empire Case</div>
+                    <div class="case-price">80 G</div>
+                </div>
+                <div class="case-card">
+                    <div class="case-name">Furious Case</div>
+                    <div class="case-price">80 G</div>
+                </div>
+            </div>
+
+            <div class="section-title">Boxes (for Silver)</div>
+            <div class="grid">
+                <div class="case-card">
+                    <div class="case-name">Common Box</div>
+                    <div class="case-price">100 S</div>
+                </div>
+                <div class="case-card rare-box">
+                    <div class="case-name" style="color:#74b9ff">Rare Box</div>
+                    <div class="case-price">250 S</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="case-modal-overlay" id="caseModal">
+            <div class="case-modal" style="animation: openModal 0.3s ease;">
+                <h2 id="modalName">Empire Case</h2>
+                
+                <div class="roulette-container">
+                    <div class="track" id="rouletteTrack">
+                        </div>
+                </div>
+
+                <div class="btn-group">
+                    <button class="btn btn-open" id="btnOpen" onclick="startRoulette()">Открыть</button>
+                    <button class="btn btn-close" onclick="closeCaseInfo()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="nav-bar">
+            <div class="nav-item active">🛒<br>Магазин</div>
+            <div class="nav-item">🎒<br>Инвентарь</div>
+            <div class="nav-item">👤<br>Профиль</div>
+            <div class="nav-item">🏆<br>Топ</div>
+        </div>
+    </div>
+
+    <script>
+        // База данных скинов для симуляции
+        const weaponBase = [
+            { name: 'G22 | Frost', r: 'Uncommon', c: '#55efc4' },
+            { name: 'USP | Nano', r: 'Rare', c: '#74b9ff' },
+            { name: 'AKR | Tiger', r: 'Epic', c: '#a29bfe' },
+            { name: 'AWM | Genesis', r: 'Legendary', c: '#ff7675' },
+            { name: 'M4 | Samurai', r: 'Arcane', c: '#fdcb6e' },
+            { name: 'Karambit | Gold', r: 'Arcane', c: '#fdcb6e' }
+        ];
+
+        let isSpinning = false; // Блокировка повторного нажатия
+
+        // Функция открытия информации о кейсе
+        function openCaseInfo(caseName) {
+            if (isSpinning) return;
+            document.getElementById('modalName').innerText = caseName;
+            
+            // Заполняем трек случайными скинами
+            const track = document.getElementById('rouletteTrack');
+            track.innerHTML = '';
+            track.style.transition = 'none'; // Сброс анимации
+            track.style.transform = 'translateX(0)';
+
+            // Создаем 60 элементов для трека
+            for (let i = 0; i < 60; i++) {
+                const randomWeapon = weaponBase[Math.floor(Math.random() * weaponBase.length)];
+                track.innerHTML += `
+                    <div class="weapon-item" style="border-bottom-color: ${randomWeapon.c}">
+                        <div style="color: ${randomWeapon.c}">${randomWeapon.r}</div>
+                        <div>${randomWeapon.name}</div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('caseModal').style.display = 'flex';
+        }
+
+        // Функция закрытия окна
+        function closeCaseInfo() {
+            if (isSpinning) return; // Нельзя закрыть во время прокрутки
+            document.getElementById('caseModal').style.display = 'none';
+        }
+
+        // ЗАПУСК РУЛЕТКИ
+        function startRoulette() {
+            if (isSpinning) return;
+            isSpinning = true;
+            
+            const btnOpen = document.getElementById('btnOpen');
+            btnOpen.innerText = 'Крутим...';
+            btnOpen.disabled = true;
+
+            const track = document.getElementById('rouletteTrack');
+            track.style.transition = 'transform 6s cubic-bezier(0.1, 0.9, 0.2, 1)'; // Плавное замедление
+            
+            // Вычисляем финальную позицию:
+            // Чтобы показать конкретный элемент (например, 51-й), нужно сдвинуть трек:
+            // (50 * ширина_элемента) + (половина_ширины_рулетки)
+            track.style.transform = 'translateX(-3800px)'; // Фиксированный сдвиг
+
+            // Обработка завершения анимации
+            setTimeout(() => {
+                isSpinning = false;
+                btnOpen.innerText = 'Открыть';
+                btnOpen.disabled = false;
+                
+                // Эффект победы для 51-го элемента (который остановился)
+                const items = track.getElementsByClassName('weapon-item');
+                if (items[50]) {
+                    items[50].style.animation = 'winPulse 1.5s ease-out';
+                    alert(`Поздравляем! Ты получил: ${items[50].innerText.split('\n')[1]}`);
+                }
+
+            }, 6100); // Немного больше, чем длительность CSS анимации
+        }
+    </script>
+</body>
+</html>
