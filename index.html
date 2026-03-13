@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SO2 Ultra Sim</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --bg: #0b0e14; --panel: #1a1f26; --accent: #ff9f43;
+            --gold: #ffd700; --silver: #bdc3c7; --text: #ecf0f1;
+            --common: #b2bec3; --uncommon: #55efc4; --rare: #74b9ff;
+            --epic: #a29bfe; --legendary: #ff7675; --arcane: #fdcb6e;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Ubuntu', sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background: var(--bg); color: var(--text); overflow-x: hidden; padding-bottom: 80px; }
+
+        /* HEADER */
+        .top-bar { position: sticky; top: 0; background: var(--panel); padding: 15px; display: flex; justify-content: space-around; z-index: 100; border-bottom: 2px solid #2d3436; box-shadow: 0 4px 10px rgba(0,0,0,0.5); }
+        .currency { display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 14px; }
+        .currency.g { color: var(--gold); }
+        .currency.s { color: var(--silver); }
+
+        /* TABS */
+        .tab { display: none; padding: 15px; animation: slideUp 0.3s ease; }
+        .tab.active { display: block; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* CARDS (CASES/BOXES) */
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 10px; }
+        .shop-item { background: var(--panel); border-radius: 12px; padding: 15px; text-align: center; border: 1px solid #2d3436; transition: 0.2s; }
+        .shop-item:active { transform: scale(0.95); }
+        .shop-item img { width: 80px; filter: drop-shadow(0 0 5px rgba(255,159,67,0.3)); }
+        .price-tag { margin-top: 10px; font-weight: bold; padding: 5px; border-radius: 5px; background: rgba(0,0,0,0.3); }
+
+        /* ROULETTE */
+        .roulette-wrap { position: relative; width: 100%; height: 100px; background: #000; overflow: hidden; margin: 20px 0; border-radius: 8px; border: 1px solid #444; }
+        .roulette-line { position: absolute; left: 50%; top: 0; width: 2px; height: 100%; background: var(--accent); z-index: 5; }
+        .track { display: flex; align-items: center; transition: transform 6s cubic-bezier(0.1, 0.9, 0.2, 1); }
+        .track-item { width: 90px; height: 90px; flex-shrink: 0; margin: 5px; border-radius: 5px; background: #222; border-bottom: 4px solid; display: flex; align-items: center; justify-content: center; font-size: 10px; text-align: center; padding: 5px; }
+
+        /* REWARDS */
+        .rewards-container { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin-top: 15px; }
+        .day-box { background: #2d3436; padding: 8px; border-radius: 5px; text-align: center; font-size: 10px; opacity: 0.6; }
+        .day-box.current { background: var(--accent); opacity: 1; color: #000; font-weight: bold; }
+
+        /* LEADERBOARD */
+        .leader-item { display: flex; justify-content: space-between; padding: 12px; background: var(--panel); margin-bottom: 8px; border-radius: 8px; border-left: 4px solid var(--accent); }
+
+        /* NAV */
+        .nav { position: fixed; bottom: 0; width: 100%; background: var(--panel); display: flex; border-top: 1px solid #2d3436; }
+        .nav-btn { flex: 1; padding: 15px; border: none; background: none; color: #636e72; font-size: 12px; cursor: pointer; }
+        .nav-btn.active { color: var(--accent); font-weight: bold; }
+
+        /* MODALS */
+        .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 20px; }
+        .modal { background: var(--panel); padding: 20px; border-radius: 15px; width: 100%; max-width: 400px; text-align: center; border: 1px solid var(--accent); }
+
+        .chances-list { font-size: 11px; color: #b2bec3; text-align: left; margin: 10px 0; }
+        .btn-main { background: var(--accent); color: #000; border: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-bar">
+        <div class="currency g">💰 <span id="gold-val">200</span> G</div>
+        <div class="currency s">🪙 <span id="silver-val">0</span> S</div>
+    </div>
+
+    <div id="tab-shop" class="tab active">
+        <h3>Кейсы (за Голду)</h3>
+        <div class="grid">
+            <div class="shop-item" onclick="openCaseInfo('Empire')">
+                📦 <h4>Empire Case</h4>
+                <div class="price-tag" style="color: var(--gold)">80 G</div>
+            </div>
+            <div class="shop-item" onclick="openCaseInfo('Furious')">
+                📦 <h4>Furious Case</h4>
+                <div class="price-tag" style="color: var(--gold)">80 G</div>
+            </div>
+        </div>
+
+        <h3 style="margin-top: 25px;">Боксы (за Серебро)</h3>
+        <div class="grid">
+            <div class="shop-item" onclick="openBoxInfo('Common')">
+                🎁 <h4>Common Box</h4>
+                <div class="price-tag" style="color: var(--silver)">100 S</div>
+            </div>
+            <div class="shop-item" onclick="openBoxInfo('Rare')">
+                🎁 <h4>Rare Box</h4>
+                <div class="price-tag" style="color: var(--silver)">250 S</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="tab-inv" class="tab">
+        <h3>Мои скины (<span id="inv-count">0</span>)</h3>
+        <div id="inv-grid" class="grid" style="grid-template-columns: 1fr 1fr 1fr;"></div>
+    </div>
+
+    <div id="tab-profile" class="tab">
+        <h3>Личный кабинет</h3>
+        <div class="shop-item" style="margin-top: 15px; text-align: left;">
+            <p>🎁 <b>Ежедневный бонус:</b> День <span id="streak-day">1</span></p>
+            <button class="btn-main" id="btn-daily" onclick="claimDaily()">Забрать награду</button>
+            <div class="rewards-container" id="daily-grid"></div>
+        </div>
+
+        <div class="shop-item" style="margin-top: 15px;">
+            <h4>Обмен валюты</h4>
+            <p style="font-size: 11px; color: #888;">Курс: 10 G = 100 S (Только в одну сторону!)</p>
+            <button class="btn-main" style="background: var(--silver);" onclick="exchangeGold()">Обменять 10 G</button>
+        </div>
+
+        <div class="shop-item" style="margin-top: 15px;">
+            <h4>Купить Голду (Telegram Stars)</h4>
+            <button class="btn-main" onclick="startPayment(50)">50 ⭐ = 1000 G</button>
+        </div>
+    </div>
+
+    <div id="tab-lead" class="tab">
+        <h3>Топ богачей (Live)</h3>
+        <div id="leader-list" style="margin-top: 15px;"></div>
+    </div>
+
+    <div id="case-modal" class="overlay">
+        <div class="modal">
+            <h2 id="m-title">Название</h2>
+            <div class="chances-list" id="m-chances"></div>
+            <div class="roulette-wrap">
+                <div class="roulette-line"></div>
+                <div id="track" class="track"></div>
+            </div>
+            <button class="btn-main" id="m-btn">Открыть</button>
+            <button class="btn-main" style="background:transparent; color:#fff;" onclick="closeAll()">Закрыть</button>
+        </div>
+    </div>
+
+    <div id="loading-modal" class="overlay">
+        <div class="modal">
+            <div id="loader-text">Проверка оплаты через Telegram Stars...</div>
+        </div>
+    </div>
+
+    <nav class="nav">
+        <button class="nav-btn active" onclick="switchTab('tab-shop', this)">Магазин</button>
+        <button class="nav-btn" onclick="switchTab('tab-inv', this)">Инвентарь</button>
+        <button class="nav-btn" onclick="switchTab('tab-profile', this)">Профиль</button>
+        <button class="nav-btn" onclick="switchTab('tab-lead', this)">Топ</button>
+    </nav>
+
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.expand();
+
+        let state = {
+            gold: parseInt(localStorage.getItem('gold')) || 200,
+            silver: parseInt(localStorage.getItem('silver')) || 0,
+            inv: JSON.parse(localStorage.getItem('inv')) || [],
+            streak: parseInt(localStorage.getItem('streak')) || 0,
+            lastClaim: localStorage.getItem('lastClaim') || ''
+        };
+
+        const skinsBase = {
+            'Common': [
+                {n: 'G22 | Frost', r: 'Uncommon', c: 'var(--uncommon)', p: 5, ch: 50},
+                {n: 'P350 | Nano', r: 'Rare', c: 'var(--rare)', p: 15, ch: 30},
+                {n: 'AKR | Tiger', r: 'Epic', c: 'var(--epic)', p: 40, ch: 15},
+                {n: 'AWM | Sport', r: 'Legendary', c: 'var(--legendary)', p: 120, ch: 4},
+                {n: 'M9 | Universe', r: 'Arcane', c: 'var(--arcane)', p: 800, ch: 1}
+            ],
+            'Empire': [
+                {n: 'M4 | Samurai', r: 'Epic', c: 'var(--epic)', p: 60, ch: 60},
+                {n: 'AKR | Necromancer', r: 'Epic', c: 'var(--epic)', p: 75, ch: 25},
+                {n: 'AWM | Genesis', r: 'Legendary', c: 'var(--legendary)', p: 300, ch: 10},
+                {n: 'Karambit | Gold', r: 'Arcane', c: 'var(--arcane)', p: 2500, ch: 5}
+            ]
+        };
+
+        function updateUI() {
+            document.getElementById('gold-val').innerText = state.gold;
+            document.getElementById('silver-val').innerText = state.silver;
+            document.getElementById('streak-day').innerText = state.streak + 1;
+            localStorage.setItem('gold', state.gold);
+            localStorage.setItem('silver', state.silver);
+            localStorage.setItem('inv', JSON.stringify(state.inv));
+            localStorage.setItem('streak', state.streak);
+            renderInv();
+            renderDaily();
+            updateLeaders();
+        }
+
+        function switchTab(id, el) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            el.classList.add('active');
+        }
+
+        function exchangeGold() {
+            if (state.gold >= 10) {
+                state.gold -= 10;
+                state.silver += 100;
+                updateUI();
+                tg.HapticFeedback.notificationOccurred('success');
+            } else {
+                alert("Недостаточно Голды!");
+            }
+        }
+
+        function openCaseInfo(type) {
+            const m = document.getElementById('case-modal');
+            const chances = skinsBase['Empire'];
+            document.getElementById('m-title').innerText = type + ' Case';
+            document.getElementById('m-chances').innerHTML = chances.map(s => `• ${s.n}: ${s.ch}%`).join('<br>');
+            document.getElementById('m-btn').onclick = () => startRoulette('Empire', 80, 'gold');
+            m.style.display = 'flex';
+        }
+
+        function openBoxInfo(type) {
+            const m = document.getElementById('case-modal');
+            const chances = skinsBase['Common'];
+            document.getElementById('m-title').innerText = type + ' Box';
+            document.getElementById('m-chances').innerHTML = chances.map(s => `• ${s.n}: ${s.ch}%`).join('<br>');
+            document.getElementById('m-btn').onclick = () => startRoulette('Common', type === 'Rare' ? 250 : 100, 'silver');
+            m.style.display = 'flex';
+        }
+
+        function startRoulette(poolType, price, currency) {
+            if (state[currency] < price) return alert("Мало денег!");
+            state[currency] -= price;
+            updateUI();
+
+            const track = document.getElementById('track');
+            track.style.transition = 'none';
+            track.style.transform = 'translateX(0)';
+            
+            const pool = skinsBase[poolType];
+            let items = [];
+            for(let i=0; i<40; i++) {
+                const r = Math.random() * 100;
+                let sum = 0;
+                for(let s of pool) {
+                    sum += s.ch;
+                    if(r <= sum) { items.push(s); break; }
+                }
+            }
+
+            track.innerHTML = items.map(s => `<div class="track-item" style="border-color:${s.c}">${s.n}</div>`).join('');
+            
+            setTimeout(() => {
+                track.style.transition = 'transform 5s cubic-bezier(0.1, 0.9, 0.2, 1)';
+                track.style.transform = 'translateX(-2800px)';
+                setTimeout(() => {
+                    const win = items[31];
+                    state.inv.push({...win, id: Date.now()});
+                    updateUI();
+                    tg.HapticFeedback.impactOccurred('heavy');
+                    alert("Выпал: " + win.n);
+                }, 5200);
+            }, 50);
+        }
+
+        function startPayment(stars) {
+            const l = document.getElementById('loading-modal');
+            l.style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('loader-text').innerText = "Транзакция подтверждена! Зачисление...";
+                setTimeout(() => {
+                    state.gold += 1000;
+                    updateUI();
+                    l.style.display = 'none';
+                    tg.showAlert("Успешно зачислено 1000 G!");
+                }, 1500);
+            }, 2000);
+        }
+
+        function claimDaily() {
+            const now = new Date().toDateString();
+            if (state.lastClaim === now) return alert("Сегодня уже забирал!");
+            
+            const reward = (state.streak + 1) * 10;
+            state.silver += reward;
+            state.streak = (state.streak + 1) % 30;
+            state.lastClaim = now;
+            localStorage.setItem('lastClaim', now);
+            updateUI();
+            alert(`Получено ${reward} серебра!`);
+        }
+
+        function renderDaily() {
+            const g = document.getElementById('daily-grid');
+            g.innerHTML = '';
+            for(let i=0; i<30; i++) {
+                const div = document.createElement('div');
+                div.className = `day-box ${i === state.streak ? 'current' : ''}`;
+                div.innerText = i + 1;
+                g.appendChild(div);
+            }
+        }
+
+        function renderInv() {
+            const g = document.getElementById('inv-grid');
+            g.innerHTML = state.inv.map((s, i) => `
+                <div class="shop-item" style="border-bottom: 3px solid ${s.c}; padding: 5px;">
+                    <div style="font-size:9px; color:${s.c}">${s.r}</div>
+                    <div style="font-size:10px;">${s.n}</div>
+                    <button onclick="sellSkin(${i})" style="font-size:9px; background:red; border:none; color:#fff; border-radius:3px;">${s.p}G</button>
+                </div>
+            `).join('');
+            document.getElementById('inv-count').innerText = state.inv.length;
+        }
+
+        function sellSkin(i) {
+            state.gold += state.inv[i].p;
+            state.inv.splice(i, 1);
+            updateUI();
+        }
+
+        function updateLeaders() {
+            const names = ["Sniper_Pro", "GoldDigger", "Legend_SO2", "R1sh_Player", "M9_Lover", "StickerStar"];
+            const list = document.getElementById('leader-list');
+            let leaders = names.map(n => ({n, g: Math.floor(Math.random() * 5000)}));
+            leaders.push({n: "ВЫ (Вы)", g: state.gold});
+            leaders.sort((a,b) => b.g - a.g);
+            list.innerHTML = leaders.map((l, i) => `
+                <div class="leader-item">
+                    <span>#${i+1} ${l.n}</span>
+                    <span style="color:var(--gold)">${l.g} G</span>
+                </div>
+            `).join('');
+        }
+
+        function closeAll() { document.querySelectorAll('.overlay').forEach(o => o.style.display = 'none'); }
+
+        updateUI();
+    </script>
+</body>
+</html>
